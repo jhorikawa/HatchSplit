@@ -1,0 +1,98 @@
+Option Explicit
+'Script written by <Junichiro Horikawa>
+'Script copyrighted by <Junichiro Horikawa>
+'Script version 2010年10月29日 1:12:39
+
+Call Main()
+Sub Main()
+	Dim strObject, arrObjects,strCrv,arrCrvs,strBorder,strLayer,strings
+	Dim arrItems, arrDefaults, arrResults, blnVal
+	Dim strHatch, dblHatchRotation, dblHatchScale
+	Dim arrSplit,strSplit
+	
+	Dim arrBs,arrPlns
+	strings = ""
+	
+	'arrItems = Array( "DeleteHatch", "NO", "YES")
+	'arrDefaults = array(False)
+	'arrResults = Rhino.GetBoolean("Option", arrItems, arrDefaults)
+
+	arrObjects = Rhino.GetObjects("Select Hatches to Split", 65536, False, True)
+	If Not IsArray(arrObjects) Then Exit Sub
+	arrCrvs = Rhino.GetObjects("Select Curves to Split", 4, True)
+	If Not IsArray(arrCrvs) Then Exit Sub
+	
+	
+	Rhino.EnableRedraw(False)
+	
+	If IsArray(arrObjects) And Not IsNull(strCrv) Then
+		For Each strObject In arrObjects
+			Dim strCopyObject, arrBoundary, arrCurve,strHatchCurve,strAddHatch,arrAddHatches
+			If Rhino.isHatch(strObject) Then
+				'If arrResults(0) = False Then
+				'	strCopyObject = Rhino.CopyObject(strObject)
+				'Else
+				''strCopyObject = strObject
+				'End If
+				strHatch = Rhino.HatchPattern(strObject)
+				dblHatchRotation = Rhino.HatchRotation(strObject)
+				dblHatchScale = Rhino.HatchScale(strObject)
+				strLayer = Rhino.ObjectLayer(strObject)
+				
+				arrBs = Rhino.DuplicateHatchBorders(strObject)
+				arrBoundary = Rhino.AddPlanarSrf(arrBs)
+				Rhino.DeleteObjects(arrBs)
+				
+				'Rhino.HatchPattern strCopyObject, "SOLID"
+				'Rhino.Redraw()
+				'arrBoundary = Rhino.ExplodeHatch(strCopyObject)
+				'arrCurve = Rhino.DuplicateSurfaceBorder (arrBoundary(0))
+				''Rhino.DeleteObject(strCopyObject)
+				'Rhino.DeleteObjects(arrBoundary)
+				If IsArray(arrBoundary) Then
+					For Each strBorder In arrBoundary
+						If Rhino.IsBrep(strBorder) Then
+							Rhino.UnselectAllObjects()
+							Rhino.SelectObject(strBorder)
+							For Each strCrv In arrCrvs
+								strings = strings + "_SelID " + strCrv + " "
+							Next
+							
+							Rhino.Command("_Split " + strings + "Enter")
+							arrSplit = Rhino.LastCreatedObjects
+							If IsArray(arrSplit)Then
+								For Each strSplit In arrSplit
+									arrCurve = Rhino.DuplicateSurfaceBorder(strSplit)
+									arrAddHatches = Rhino.AddHatches(arrCurve, strHatch, dblHatchScale, dblHatchRotation)
+									Rhino.ObjectLayer arrAddHatches, strLayer
+									'									If isArray(arrCurve) Then
+									'										For Each strHatchCurve In arrCurve
+									'											strAddHatch = Rhino.AddHatch(strHatchCurve,strHatch,dblHatchScale,dblHatchRotation)
+									'											Rhino.ObjectLayer strAddHatch,strLayer
+									'										Next
+									'									End IF
+									Rhino.DeleteObjects(arrCurve)
+								Next
+								RHino.DeleteObjects arrSplit
+							Else
+								arrCurve = Rhino.DuplicateSurfaceBorder(strBorder)
+								If isArray(arrCurve) Then
+									arrAddHatches = Rhino.AddHatches(arrCurve, strHatch, dblHatchScale, dblHatchRotation)
+									Rhino.ObjectLayer arrAddHatches, strLayer
+									'									For Each strHatchCurve In arrCurve
+									'										strAddHatch = RHino.AddHatch(strHatchCurve,strHatch,dblHatchScale,dblHatchRotation)
+									'										Rhino.ObjectLayer strAddHatch,strLayer
+									'									Next
+								End If
+								Rhino.DeleteObjects(arrCurve)
+							End If
+						End If
+					Next
+					Rhino.DeleteObjects(arrBoundary)
+				End If
+			End If
+		Next
+	End If
+	Rhino.DeleteObjects(arrObjects)
+	Rhino.EnableRedraw(True)
+End Sub
